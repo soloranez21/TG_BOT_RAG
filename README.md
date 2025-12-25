@@ -25,5 +25,124 @@
 
 Создание бота на Telegram, который будет использовать технологии **искусственного интеллекта**, а также сопутствующие инструменты и сервисы для обработки и анализа данных.  
 
-Для более подробного описания требований и функционала см. файл: [TG_Bot.md](./TG_Bot.md)
-Для более подробного описания технической  реализации см. файл: [TID.md](./TID.md)
+Для более подробного описания требований и функционала см. файл: [docs/PRD.md](./docs/PRD.md)
+Для более подробного описания технической реализации см. файл: [docs/TID.md](./docs/TID.md)
+
+---
+
+## Быстрый старт
+
+### 1. Предварительные требования
+
+- Python 3.11+
+- Docker Desktop
+- Токен бота от @BotFather
+- API ключ OpenAI
+
+### 2. Клонирование и настройка
+
+```bash
+git clone https://github.com/soloranez21/TG_BOT_RAG.git
+cd TG_BOT_RAG
+
+# Создаём виртуальное окружение
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# или: venv\Scripts\activate  # Windows
+
+# Устанавливаем зависимости
+pip install -r requirements.txt
+```
+
+### 3. Настройка окружения
+
+```bash
+# Копируем пример конфигурации
+cp .env.example .env
+
+# Редактируем .env
+nano .env
+```
+
+Содержимое `.env`:
+```
+MASTER_BOT_TOKEN=ваш_токен_от_botfather
+DATABASE_URL=postgresql://ragbot:ragbot123@localhost:5432/ragbot
+QDRANT_URL=http://localhost:6333
+```
+
+### 4. Запуск инфраструктуры
+
+```bash
+# Запуск PostgreSQL и Qdrant
+docker-compose up -d
+
+# Проверка
+docker-compose ps
+```
+
+### 5. Запуск бота
+
+```bash
+python -m src.master_bot.main
+```
+
+---
+
+## Структура проекта
+
+```
+TG_BOT_RAG/
+├── src/
+│   ├── master_bot/          # Главный бот
+│   │   ├── main.py
+│   │   ├── handlers.py
+│   │   ├── validators.py
+│   │   ├── process_manager.py
+│   │   └── states.py
+│   ├── personal_bot/        # Персональный бот
+│   │   ├── main.py
+│   │   ├── handlers.py
+│   │   ├── document_processor.py
+│   │   └── rag_chain.py
+│   └── shared/
+│       ├── config.py
+│       └── db.py
+├── docs/
+│   ├── PRD.md
+│   └── TID.md
+├── docker-compose.yml
+├── requirements.txt
+└── .env.example
+```
+
+---
+
+## Команды Master Bot
+
+| Команда | Описание |
+|---------|----------|
+| `/start` | Создать персонального бота |
+| `/status` | Статус вашего бота |
+| `/restart` | Перезапустить бота |
+| `/delete` | Удалить бота |
+| `/help` | Справка |
+
+## Команды Personal Bot
+
+| Команда | Описание |
+|---------|----------|
+| `/start` | Приветствие |
+| `/status` | Статистика документов |
+| `/clear` | Удалить все документы |
+| `/help` | Справка |
+
+---
+
+## Технологии
+
+- **aiogram 3.x** - Telegram Bot Framework
+- **LangChain** - RAG Pipeline
+- **Qdrant** - Vector Database
+- **PostgreSQL** - User Data Storage
+- **OpenAI** - Embeddings & LLM
