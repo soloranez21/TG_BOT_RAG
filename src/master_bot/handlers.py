@@ -14,6 +14,7 @@ from .process_manager import (
     spawn_personal_bot,
     stop_personal_bot,
     is_bot_running,
+    get_bot_process_info,
 )
 
 logger = logging.getLogger(__name__)
@@ -256,6 +257,36 @@ async def cmd_delete(message: Message, db, qdrant_url: str):
     )
 
 
+
+
+@router.message(Command("debug"))
+async def cmd_debug(message: Message, db):
+    """Handle /debug command - show detailed process information."""
+    bot_data = await db.get_user_bot(message.from_user.id)
+
+    if not bot_data:
+        await message.answer("❌ У вас ещё нет бота.")
+        return
+
+    # Get process info
+    info = get_bot_process_info(message.from_user.id)
+    
+    debug_msg = f"🔍 Диагностика бота @{bot_data.bot_username}\n\n"
+    debug_msg += f"Статус: {info['status']}\n"
+    debug_msg += f"Сообщение: {info['message']}\n"
+    
+    if info['status'] == 'running':
+        debug_msg += f"PID: {info['pid']}\n"
+    elif info['status'] == 'terminated':
+        debug_msg += f"Exit Code: {info['exit_code']}\n"
+        if info.get('stdout'):
+            debug_msg += f"\n📤 STDOUT:\n{info['stdout'][:500]}\n"
+        if info.get('stderr'):
+            debug_msg += f"\n📛 STDERR:\n{info['stderr'][:500]}\n"
+    
+    await message.answer(debug_msg)
+
+
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     """Handle /help command."""
@@ -267,6 +298,8 @@ async def cmd_help(message: Message):
         "/status - Проверить статус бота\n"
         "/restart - Перезапустить бота\n"
         "/delete - Удалить бота\n"
+        "/debug - Показать детальную диагностику процесса\n"
         "/help - Показать эту справку\n\n"
         "Нужна помощь? Пишите @airanez"
     )
+
