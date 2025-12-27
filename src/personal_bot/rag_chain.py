@@ -164,15 +164,21 @@ class RAGChain:
             Tuple of (answer, list of source document names)
         """
         try:
+            logger.info(f"[QUERY] Starting query: {question[:50]}...")
+            
             # Create retriever
+            logger.info(f"[QUERY] Creating retriever with k={k}")
             retriever = self.vectorstore.as_retriever(
                 search_kwargs={"k": k}
             )
 
             # Retrieve relevant documents
+            logger.info(f"[QUERY] Retrieving relevant documents...")
             relevant_docs = retriever.invoke(question)
+            logger.info(f"[QUERY] Found {len(relevant_docs)} relevant documents")
 
             if not relevant_docs:
+                logger.warning(f"[QUERY] No relevant documents found")
                 return (
                     "Я не нашёл релевантной информации в ваших документах.",
                     [],
@@ -183,12 +189,14 @@ class RAGChain:
                 doc.metadata.get("source", "Неизвестный источник")
                 for doc in relevant_docs
             ))
+            logger.info(f"[QUERY] Sources: {sources}")
 
             # Format context
             def format_docs(docs: list[Document]) -> str:
                 return "\n\n".join(doc.page_content for doc in docs)
 
             # Build and execute chain
+            logger.info(f"[QUERY] Building RAG chain...")
             chain = (
                 {
                     "context": retriever | format_docs,
@@ -199,12 +207,15 @@ class RAGChain:
                 | StrOutputParser()
             )
 
+            logger.info(f"[QUERY] Invoking chain with LLM...")
             answer = chain.invoke(question)
+            logger.info(f"[QUERY] Got answer: {answer[:100]}...")
 
             return answer, sources
 
         except Exception as e:
-            logger.error(f"Query failed: {e}")
+            logger.error(f"[QUERY] Query failed: {e}")
+            logger.exception(e)
             return (
                 "Произошла ошибка при обработке запроса. Попробуйте ещё раз.",
                 [],

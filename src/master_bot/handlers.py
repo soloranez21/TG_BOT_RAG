@@ -277,6 +277,18 @@ async def cmd_debug(message: Message, db):
     
     if info['status'] == 'running':
         debug_msg += f"PID: {info['pid']}\n"
+        
+        # Show last logs for running process
+        if info.get('stdout'):
+            last_stdout = info['stdout'][-500:] if len(info['stdout']) > 500 else info['stdout']
+            if last_stdout.strip():
+                debug_msg += f"\n📤 Последние логи (STDOUT):\n{last_stdout}\n"
+        
+        if info.get('stderr'):
+            last_stderr = info['stderr'][-500:] if len(info['stderr']) > 500 else info['stderr']
+            if last_stderr.strip():
+                debug_msg += f"\n📛 Ошибки (STDERR):\n{last_stderr}\n"
+                
     elif info['status'] == 'terminated':
         debug_msg += f"Exit Code: {info['exit_code']}\n"
         if info.get('stdout'):

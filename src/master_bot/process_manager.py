@@ -73,7 +73,21 @@ def spawn_personal_bot(
     project_root = personal_bot_path.parent.parent.parent
     logger.info(f"[SPAWN] Project root: {project_root}")
 
+    # Create logs directory
+    logs_dir = project_root / "logs"
+    logs_dir.mkdir(exist_ok=True)
+    
+    # Log files for this bot
+    stdout_log = logs_dir / f"personal_bot_{telegram_user_id}_stdout.log"
+    stderr_log = logs_dir / f"personal_bot_{telegram_user_id}_stderr.log"
+    
+    logger.info(f"[SPAWN] Logs will be written to {logs_dir}")
+
     try:
+        # Open log files
+        stdout_file = open(stdout_log, "w", encoding="utf-8")
+        stderr_file = open(stderr_log, "w", encoding="utf-8")
+        
         proc = subprocess.Popen(
             [
                 sys.executable,
@@ -84,8 +98,8 @@ def spawn_personal_bot(
                 "--collection", qdrant_collection,
                 "--qdrant-url", qdrant_url,
             ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=stdout_file,
+            stderr=stderr_file,
             text=True,
             bufsize=1,
             cwd=str(project_root),  # Set working directory to project root
@@ -100,10 +114,15 @@ def spawn_personal_bot(
         
         if proc.poll() is not None:
             # Process died immediately
-            stdout, stderr = proc.communicate()
+            stdout_file.close()
+            stderr_file.close()
+            
+            # Read error logs
+            with open(stderr_log, "r", encoding="utf-8") as f:
+                stderr_content = f.read()
+            
             logger.error(f"[SPAWN] ❌ Process died immediately! Exit code: {proc.returncode}")
-            logger.error(f"[SPAWN] STDOUT: {stdout}")
-            logger.error(f"[SPAWN] STDERR: {stderr}")
+            logger.error(f"[SPAWN] STDERR: {stderr_content}")
             del running_bots[telegram_user_id]
             return False
         
@@ -218,25 +237,48 @@ def get_bot_process_info(telegram_user_id: int) -> dict:
     # Check if process is still running
     poll_result = proc.poll()
     
+    # Get log file paths
+    personal_bot_path = get_personal_bot_path()
+    project_root = personal_bot_path.parent.parent.parent
+    logs_dir = project_root / "logs"
+    stdout_log = logs_dir / f"personal_bot_{telegram_user_id}_stdout.log"
+    stderr_log = logs_dir / f"personal_bot_{telegram_user_id}_stderr.log"
+    
+    # Read logs
+    stdout_content = ""
+    stderr_content = ""
+    
+    try:
+        if stdout_log.exists():
+            with open(stdout_log, "r", encoding="utf-8") as f:
+                stdout_content = f.read()[-2000:]  # Last 2000 chars
+    except Exception:
+        pass
+    
+    try:
+        if stderr_log.exists():
+            with open(stderr_log, "r", encoding="utf-8") as f:
+                stderr_content = f.read()[-2000:]  # Last 2000 chars
+    except Exception:
+        pass
+    
     if poll_result is None:
         # Still running
         return {
             "status": "running",
             "pid": proc.pid,
+            "stdout": stdout_content,
+            "stderr": stderr_content,
             "message": f"Process is running with PID {proc.pid}"
         }
     else:
         # Process has terminated
-        try:
-            stdout, stderr = proc.communicate(timeout=1)
-        except Exception:
-            stdout, stderr = "", ""
-            
         return {
             "status": "terminated",
             "exit_code": poll_result,
-            "stdout": stdout,
-            "stderr": stderr,
+            "stdout": stdout_content,
+            "stderr": stderr_content,
             "message": f"Process terminated with exit code {poll_result}"
         }
+
 
