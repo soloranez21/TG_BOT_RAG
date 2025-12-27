@@ -165,7 +165,7 @@ async def process_openai_key(
 
 
 @router.message(Command("status"))
-async def cmd_status(message: Message, db):
+async def cmd_status(message: Message, db, qdrant_url: str):
     """Handle /status command."""
     bot_data = await db.get_user_bot(message.from_user.id)
 
@@ -179,12 +179,33 @@ async def cmd_status(message: Message, db):
     running = is_bot_running(message.from_user.id)
     status_emoji = "🟢" if running else "🔴"
 
+    # Get stats from Qdrant
+    doc_count = 0
+    chunk_count = 0
+
+    try:
+        # Create temporary client for stats check
+        client = QdrantClient(url=qdrant_url)
+        
+        # Check if collection exists
+        collections = [c.name for c in client.get_collections().collections]
+        
+        if bot_data.qdrant_collection in collections:
+            info = client.get_collection(bot_data.qdrant_collection)
+            chunk_count = info.points_count
+            
+            # Estimate document count
+            doc_count = max(1, chunk_count // 10) if chunk_count > 0 else 0
+            
+    except Exception as e:
+        logger.error(f"Failed to get stats for bot {bot_data.bot_username}: {e}")
+
     await message.answer(
         f"📊 Статус бота\n\n"
         f"Бот: @{bot_data.bot_username}\n"
         f"Статус: {status_emoji} {'Работает' if running else 'Остановлен'}\n"
-        f"Документов: {bot_data.document_count}\n"
-        f"Чанков: {bot_data.chunk_count}\n\n"
+        f"Документов: ~{doc_count}\n"
+        f"Чанков: {chunk_count}\n\n"
         "Команды:\n"
         "/restart - Перезапустить бота\n"
         "/delete - Удалить бота"
