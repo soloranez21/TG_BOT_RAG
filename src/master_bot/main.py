@@ -35,7 +35,8 @@ async def main():
     # Initialize database
     db = Database(config.database_url)
     await db.connect()
-    logger.info("Connected to database")
+    await db.init_db()
+    logger.info("Connected to database and initialized schema")
 
     # Inject dependencies into dispatcher
     dp["db"] = db
